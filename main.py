@@ -6,9 +6,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
 app = FastAPI()
+
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # -----------------------------
 # Request Model
@@ -29,10 +29,24 @@ class SentimentResponse(BaseModel):
 @app.post("/comment", response_model=SentimentResponse)
 def analyze_comment(request: CommentRequest):
 
+    if not os.getenv("OPENAI_API_KEY"):
+        raise HTTPException(status_code=500, detail="API key not configured")
+
     try:
         response = client.responses.create(
             model="gpt-4.1-mini",
-            input=f"Analyze sentiment of this comment: {request.comment}",
+            input=[
+                {
+                    "role": "system",
+                    "content": "You are a sentiment analysis system. "
+                               "Classify sentiment strictly as positive, negative, or neutral. "
+                               "Return rating 1 (very negative) to 5 (very positive)."
+                },
+                {
+                    "role": "user",
+                    "content": request.comment
+                }
+            ],
             response_format={
                 "type": "json_schema",
                 "json_schema": {
